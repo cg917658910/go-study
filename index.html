@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>RSS 订阅器</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+    <div id="app">
+        <h2>WebSocket RSS 订阅器</h2>
+
+        <input v-model="channel" placeholder="输入 RSS 频道名称">
+        <button @click="subscribe">订阅</button>
+        <button @click="unsubscribe">取消订阅</button>
+
+        <h3>RSS 文章</h3>
+        <ul>
+            <li v-for="(article, index) in articles" :key="index">{{ article }}</li>
+        </ul>
+    </div>
+
+    <script>
+        const { createApp, ref } = Vue;
+
+        createApp({
+            setup() {
+                let channel = ref(""); // 频道名称
+                let articles = ref([]); // 文章列表
+                let socket = null;
+
+                // 订阅 RSS
+                function subscribe() {
+                    if (socket) socket.close(); // 关闭旧连接
+                    socket = new WebSocket("ws://localhost:8080/ws");
+
+                    socket.onopen = function() {
+                        socket.send(channel.value); // 发送订阅频道
+                        console.log("✅ 订阅成功:", channel.value);
+                    };
+
+                    socket.onmessage = function(event) {
+                        console.log("📩 收到 RSS 文章:", event.data);
+                        articles.value.unshift(event.data);
+                    };
+
+                    socket.onclose = function() {
+                        console.log("❌ 订阅已取消");
+                    };
+                }
+
+                // 取消订阅
+                function unsubscribe() {
+                    if (socket) {
+                        socket.close();
+                        socket = null;
+                    }
+                }
+
+                return { channel, articles, subscribe, unsubscribe };
+            }
+        }).mount("#app");
+    </script>
+</body>
+</html>

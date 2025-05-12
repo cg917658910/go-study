@@ -1,0 +1,78 @@
+package test
+
+import "fmt"
+
+type bPlusTreeValue struct {
+	id    int
+	value string
+}
+
+const (
+	defaultDegree = 3
+)
+
+type bPlusTree struct {
+	root   *bPlusTreeNode
+	degree int
+}
+
+type bPlusTreeNode struct {
+	keys     []int
+	children []*bPlusTreeNode
+	isLeaf   bool
+	value    map[int]*bPlusTreeValue
+}
+
+func NewBPlusTree(degree int) *bPlusTree {
+	if degree < 2 {
+		return nil
+	}
+	return &bPlusTree{
+		root:   nil,
+		degree: degree,
+	}
+}
+
+func (t *bPlusTree) newNode(isLeaf bool) *bPlusTreeNode {
+	return &bPlusTreeNode{
+		keys:     make([]int, 0, t.degree-1),
+		children: make([]*bPlusTreeNode, 0, t.degree-1),
+		isLeaf:   isLeaf,
+		value:    map[int]*bPlusTreeValue{},
+	}
+}
+func (t *bPlusTree) Insert(key int, value *bPlusTreeValue) {
+	if value == nil {
+		fmt.Printf("value is nil\n")
+		return
+	}
+	if t.root == nil {
+		t.root = t.newNode(true)
+	}
+	// 如果根节点已满，则需要分裂
+	if len(t.root.keys) == t.degree-1 {
+		newRoot := t.newNode(false)
+		t.root, newRoot = newRoot, t.root
+		t.splitChild(newRoot, 0)
+		t.insertNonFull(newRoot, key, value)
+	} else {
+		t.insertNonFull(t.root, key, value)
+	}
+	t.insert(key, value)
+}
+func (t *bPlusTree) insert(key int, value *bPlusTreeValue) {
+
+	if len(t.root.keys) == 2*t.degree-1 {
+		newRoot := &bPlusTreeNode{
+			keys:     []int{},
+			children: []*bPlusTreeNode{t.root},
+			isLeaf:   false,
+			value:    map[int]*bPlusTreeValue{},
+		}
+		t.splitChild(newRoot, 0)
+		t.insertNonFull(newRoot, key, value)
+		t.root = newRoot
+	} else {
+		t.insertNonFull(t.root, key, value)
+	}
+}
