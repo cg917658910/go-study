@@ -1,9 +1,7 @@
 package main
 
 import (
-	"cmp"
 	"iter"
-	"maps"
 	"slices"
 )
 
@@ -62,6 +60,6 @@ func main() {
 		println(v)
 		return true
 	}) */
-	 cmp.Compare()
-	 maps.Values()
+	//cmp.Compare()
+	//maps.Values()
 }

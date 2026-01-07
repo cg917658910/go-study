@@ -76,10 +76,20 @@ func (msg *MsgModel) SetType(msgType int) {
 // 子类
 type GroupMsgModel struct {
 	MsgModel // 组合继承
+	msgId    int
 }
 
+func (group *GroupMsgModel) GetId() int {
+	return group.msgId
+}
 func main() {
 
+	//单例模式
+	/* group := &GroupMsgModel{}
+	group.SetId(100)
+	group.SetType(1)
+	fmt.Println("group.msgId =", group.msgId, "\tgroup.MsgModel.msgId =", group.MsgModel.msgId)
+	fmt.Println("group.msgType =", group.msgType, "\tgroup.MsgModel.msgType =", group.MsgModel.msgType) */
 	/* opts := []Option{
 		WithConnectTimeout(10 * time.Second),
 		WithReadTimeout(5 * time.Second),
