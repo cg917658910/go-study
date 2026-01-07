@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Socket.IO Demo</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .message {
+            margin: 5px 0;
+            padding: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+
+        .message.own {
+            background: #e3f2fd;
+            text-align: right;
+        }
+
+        .message.system {
+            background: #fff3e0;
+            font-style: italic;
+            color: #666;
+        }
+
+        input,
+        button {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .clients-list {
+            list-style: none;
+            margin-top: 10px;
+        }
+
+        .clients-list li {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Go Socket.IO Chat Demo</h1>
+
+    <div class="status" id="status">Disconnected</div>
+
+    <div class="container">
+        <div class="panel">
+            <h3>Chat Room</h3>
+            <div id="messages"></div>
+
+            <div id="input-area">
+                <input type="text" id="messageInput" placeholder="Type your message..." disabled>
+                <button id="sendButton" onclick="sendMessage()" disabled>Send</button>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <input type="text" id="roomInput" placeholder="Room name" value="general">
+                <button onclick="joinRoom()">Join Room</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>Settings</h3>
+            <input type="text" id="usernameInput" placeholder="Enter username">
+            <button onclick="setUsername()">Set Username</button>
+
+            <h3 style="margin-top: 20px;">Online Users</h3>
+            <ul id="clients" class="clients-list"></ul>
+
+            <h3 style="margin-top: 20px;">Server Stats</h3>
+            <div id="stats">Connecting...</div>
+
+            <button style="margin-top: 20px;" onclick="testBroadcast()">Test Broadcast</button>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let currentUser = null;
+        let connectedUsers = new Map();
+
+        function connect() {
+            // 连接到Socket.IO服务器
+            socket = io('http://localhost:8080', {
+                path: '/socket.io',
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                updateStatus(true);
+                document.getElementById('messageInput').disabled = false;
+                document.getElementById('sendButton').disabled = false;
+                addSystemMessage('Connected to server with ID: ' + socket.id);
+                currentUser = socket.id;
+                updateServerStats();
+            });
+
+            socket.on('disconnect', () => {
+                updateStatus(false);
+                addSystemMessage('Disconnected from server');
+            });
+
+            socket.on('welcome', (data) => {
+                addSystemMessage(data.message);
+            });
+
+            socket.on('chat message', (data) => {
+                addMessage(data.from, data.message);
+            });
+
+            socket.on('private message', (data) => {
+                addMessage(data.from + ' (private)', data.message, true);
+            });
+
+            socket.on('user_joined', (data) => {
+                connectedUsers.set(data.id, data.username);
+                updateUsersList();
+                addSystemMessage(`${data.username} joined the chat`);
+            });
+
+            socket.on('user_left', (data) => {
+                connectedUsers.delete(data.id);
+                updateUsersList();
+                addSystemMessage('User left the chat');
+            });
+
+            socket.on('username_changed', (data) => {
+                connectedUsers.set(data.id, data.new);
+                updateUsersList();
+                addSystemMessage(`${data.old} changed name to ${data.new}`);
+            });
+
+            socket.on('room joined', (data) => {
+                addSystemMessage(`Joined room: ${data.room}`);
+            });
+
+            socket.on('broadcast', (data) => {
+                addSystemMessage(`Broadcast: ${data}`);
+            });
+
+            socket.on('username_set', (data) => {
+                addSystemMessage(`Username set to: ${data.username}`);
+            });
+        }
+
+        function updateStatus(connected) {
+            const status = document.getElementById('status');
+            status.textContent = connected ? 'Connected' : 'Disconnected';
+            status.className = 'status ' + (connected ? 'connected' : 'disconnected');
+        }
+
+        function addMessage(sender, text, isPrivate = false) {
+            const messages = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message' + (sender === currentUser ? ' own' : '');
+            messageDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
+            if (isPrivate) {
+                messageDiv.style.background = '#fce4ec';
+            }
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function addSystemMessage(text) {
+            const messages = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message system';
+            messageDiv.textContent = text;
+            messages.appendChild(messageDiv);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+
+            if (message && socket) {
+                socket.emit('chat message', message);
+                addMessage('You', message);
+                input.value = '';
+            }
+        }
+
+        function setUsername() {
+            const input = document.getElementById('usernameInput');
+            const username = input.value.trim();
+
+            if (username && socket) {
+                socket.emit('set username', username);
+                input.value = '';
+            }
+        }
+
+        function joinRoom() {
+            connect()
+            const input = document.getElementById('roomInput');
+            const room = input.value.trim();
+
+            if (room && socket) {
+                socket.emit('join room', room);
+            }
+        }
+
+        function updateUsersList() {
+            const list = document.getElementById('clients');
+            list.innerHTML = '';
+
+            connectedUsers.forEach((username, id) => {
+                const li = document.createElement('li');
+                li.textContent = `${username} (${id.substring(0, 8)}...)`;
+                list.appendChild(li);
+            });
+        }
+
+        function updateServerStats() {
+            fetch('/api/health')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('stats').innerHTML = `
+                        Status: ${data.status}<br>
+                        Connected Clients: ${data.clients}
+                    `;
+                });
+        }
+
+        function testBroadcast() {
+            fetch('/api/broadcast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: 'This is a test broadcast from admin!' })
+            });
+        }
+
+        // 输入框回车发送消息
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // 页面加载时自动连接
+        window.onload = connect;
+    </script>
+</body>
+
+</html>

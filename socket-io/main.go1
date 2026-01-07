@@ -1,0 +1,58 @@
+package main
+
+import (
+	"fmt"
+	"log"
+
+	socketio "github.com/googollee/go-socket.io"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+)
+
+func main() {
+	e := echo.New()
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+	}))
+	// 创建 socket.io server
+	server := socketio.NewServer(nil)
+
+	// 连接事件
+	// ⚠️ 核心：允许跨域
+	server.OnConnect("/", func(s socketio.Conn) error {
+		// 手动设置 CORS header（兼容性最好）
+		s.RemoteHeader().Add("Access-Control-Allow-Origin", "*")
+		s.RemoteHeader().Add("Access-Control-Allow-Credentials", "true")
+
+		fmt.Println("connected:", s.ID())
+		return nil
+	})
+
+	// 接收客户端消息
+	server.OnEvent("/", "message", func(s socketio.Conn, msg string) {
+		log.Println("recv:", msg)
+		// 广播给所有客户端
+		server.BroadcastToNamespace("/", "message", msg)
+	})
+	server.OnEvent("/", "chat", func(s socketio.Conn, msg string) {
+		log.Println("recv msg:", msg)
+
+		// 回发给当前客户端
+		s.Emit("reply", "server got: "+msg)
+	})
+	// 断开连接
+	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
+		log.Println("disconnected:", s.ID(), reason)
+	})
+
+	go server.Serve()
+	defer server.Close()
+
+	// Echo 挂载 socket.io
+	e.GET("/socket.io/*", echo.WrapHandler(server))
+	e.POST("/socket.io/*", echo.WrapHandler(server))
+
+	log.Println("socket.io server started at :8080")
+	e.Logger.Fatal(e.Start(":8080"))
+}

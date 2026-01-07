@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>WebSocket Demo</title>
+</head>
+
+<body>
+    <h1>WebSocket Chat</h1>
+    <div id="messages"></div>
+    <input type="text" id="input">
+    <button onclick="send()">Send</button>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8090/ws');
+        const messages = document.getElementById('messages');
+
+        ws.onopen = () => {
+            log('✅ Connected to WebSocket server');
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            log(`📨 ${data.type}: ${JSON.stringify(data)}`);
+        };
+
+        ws.onclose = () => {
+            log('❌ Disconnected');
+        };
+
+        ws.onerror = (error) => {
+            log('❌ WebSocket error: ' + error);
+        };
+
+        function send() {
+            const input = document.getElementById('input');
+            const msg = {
+                type: 'message',
+                content: input.value,
+                time: Date.now()
+            };
+            ws.send(JSON.stringify(msg));
+            input.value = '';
+        }
+
+        function log(msg) {
+            const div = document.createElement('div');
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
+            messages.appendChild(div);
+        }
+    </script>
+</body>
+
+</html>
