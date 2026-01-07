@@ -101,7 +101,6 @@ func countDown1() {
 		return
 
 	}
-	fmt.Println("Boom!")
 }
 
 var (
