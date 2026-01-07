@@ -1,22 +1,22 @@
 package main
 
 import (
-"sync"
-"testing"
+	"sync"
+	"testing"
 )
 
 func TestBarrier(t *testing.T) {
-n := 3
-barrier := NewBarrier(n)
-var wg sync.WaitGroup
+	n := 3
+	barrier := NewBarrier(n)
+	var wg sync.WaitGroup
 
-for i := 0; i < n; i++ {
-wg.Add(1)
-go func() {
-defer wg.Done()
-barrier.Wait()
-}()
-}
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			barrier.Wait()
+		}()
+	}
 
-wg.Wait()
+	wg.Wait()
 }
