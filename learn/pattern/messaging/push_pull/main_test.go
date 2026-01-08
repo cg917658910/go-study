@@ -1,10 +1,16 @@
 package messaging
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 )
+
+// Helper function to generate test message content
+func makeTestMessage(i int) string {
+	return fmt.Sprintf("Message %d", i)
+}
 
 func TestPushPullBasic(t *testing.T) {
 	producer := NewProducer(10)
@@ -13,7 +19,7 @@ func TestPushPullBasic(t *testing.T) {
 	// 生产者推送消息
 	go func() {
 		for i := 0; i < 5; i++ {
-			msg := Message{Content: "Message " + string(rune('0'+i))}
+			msg := Message{Content: makeTestMessage(i)}
 			producer.Push(msg)
 		}
 		close(producer.messages)
@@ -103,7 +109,7 @@ func TestProducerConsumerConcurrent(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < messageCount; i++ {
-			msg := Message{Content: "Message " + string(rune('0'+i%10))}
+			msg := Message{Content: makeTestMessage(i)}
 			producer.Push(msg)
 		}
 		close(producer.messages)
@@ -145,7 +151,7 @@ func TestMultipleProducersSingleConsumer(t *testing.T) {
 			defer wg.Done()
 			producer := &Producer{messages: messages}
 			for i := 0; i < messagesPerProducer; i++ {
-				msg := Message{Content: "Message from producer " + string(rune('0'+producerID))}
+				msg := Message{Content: fmt.Sprintf("Message from producer %d", producerID)}
 				producer.Push(msg)
 			}
 		}(p)
@@ -209,7 +215,7 @@ func TestSingleProducerMultipleConsumers(t *testing.T) {
 
 	// 生产者发送消息
 	for i := 0; i < totalMessages; i++ {
-		producer.Push(Message{Content: "Message " + string(rune('0'+i%10))})
+		producer.Push(Message{Content: makeTestMessage(i)})
 	}
 
 	time.Sleep(100 * time.Millisecond)
@@ -227,7 +233,7 @@ func TestBufferOverflow(t *testing.T) {
 
 	// 填满缓冲区
 	for i := 0; i < bufferSize; i++ {
-		producer.Push(Message{Content: "Message " + string(rune('0'+i))})
+		producer.Push(Message{Content: makeTestMessage(i)})
 	}
 
 	// 尝试推送更多消息（应该阻塞或失败）
