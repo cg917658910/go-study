@@ -42,8 +42,10 @@ func TestCircuitBreaker(t *testing.T) {
 
 	// 测试恢复逻辑
 	for i := 0; i < 3; i++ {
+		taskIndex := i // 捕获循环变量
 		err := cb.Execute(func() error {
-			if i == 0 {
+			// 第一个恢复任务失败，测试 HALF-OPEN 状态下的失败处理
+			if taskIndex == 0 {
 				return fmt.Errorf("Task failed in HALF-OPEN")
 			}
 			return nil

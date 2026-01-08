@@ -66,6 +66,22 @@
 - Read-Write Lock (读写锁模式)
 - Condition Variable (条件变量模式)
 
+### 6. [稳定性模式 (Stability Patterns)](./stability/README.md)
+
+稳定性模式旨在提高系统的可靠性和容错能力，防止故障蔓延，确保系统在面对错误和异常时能够优雅地降级。
+
+**包含的模式:**
+- Circuit Breaker (熔断器模式)
+- Bulkheads (隔离舱壁模式)
+
+### 7. [消息传递模式 (Messaging Patterns)](./messaging/README.md)
+
+消息传递模式提供了进程间通信和异步处理的机制，帮助构建松耦合、可扩展的系统。
+
+**包含的模式:**
+- Future/Promise (期约模式)
+- Push/Pull (推拉模式)
+
 ## 🎯 学习路径
 
 ### 初学者路径
